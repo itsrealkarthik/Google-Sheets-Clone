@@ -9,7 +9,9 @@ import FormattingToolbar from './toolbar';
 
 
 export default function Home() {
-  
+
+  {/*State variables for the grid*/}
+
   const [gridData, setGridData] = useState({});
   const [activeCell, setActiveCell] = useState("A1");
   const [editValue, setEditValue] = useState('');
@@ -24,28 +26,9 @@ export default function Home() {
   const [isCtrlPressed, setIsCtrlPressed] = useState(false);
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [cellStyles, setCellStyles] = useState({});
-
   const gridRef = useRef(null);
 
-  const colors = [
-    '#000000', '#FF0000', '#00FF00', '#0000FF', 
-    '#FFFF00', '#FF00FF', '#00FFFF', '#808080',
-    '#800000', '#008000', '#000080', '#808000',
-    '#800080', '#008080', '#C0C0C0', '#FFFFFF'
-  ];
-
-  const handleColorSelect = (color) => {
-    const newCellStyles = { ...cellStyles };
-    selectedCells.forEach(cellRef => {
-      newCellStyles[cellRef] = {
-        ...newCellStyles[cellRef],
-        backgroundColor: color
-      };
-    });
-    setCellStyles(newCellStyles);
-    setShowColorPicker(false);
-  };
-
+  {/*Function to handle keyboard events*/}
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (e.key === 'Control') {
@@ -68,6 +51,14 @@ export default function Home() {
     };
   }, []);
 
+  useEffect(() => {
+    window.addEventListener('mouseup', handleMouseUp);
+    return () => window.removeEventListener('mouseup', handleMouseUp);
+  }, []);
+
+
+
+  {/*Function to handle mouse events on the grid*/}
   const handleMouseDown = (rowIndex, colIndex, e) => {
     const cellRef = getCellReference(rowIndex, colIndex);
 
@@ -116,11 +107,43 @@ export default function Home() {
   };
 
 
-  useEffect(() => {
-    window.addEventListener('mouseup', handleMouseUp);
-    return () => window.removeEventListener('mouseup', handleMouseUp);
-  }, []);
+    {/*Function to handle cell click event*/}
+    const handleCellClick = (row, col) => {
+      const cellRef = getCellReference(row, col);
+      setActiveCell(cellRef);
+      setEditValue(gridData[cellRef] || '');
+    };
   
+    const handleCellChange = (row, col, value) => {
+      console.log('Cell change:', row, col, value);
+      const cellRef = getCellReference(row, col);
+      setGridData(prev => ({
+        ...prev,
+        [cellRef]: value
+      }));
+    };
+  
+    const handleFormulaBarChange = (value) => {
+      setEditValue(value);
+      if (activeCell) {
+        setGridData(prev => ({
+          ...prev,
+          [activeCell]: value
+        }));
+      }
+    };
+  
+    const handleMenuClick = (menuName) => {
+      setActiveMenu(activeMenu === menuName ? null : menuName);
+    };
+  
+    const closeAllMenus = () => {
+      setActiveMenu(null);
+    };
+
+
+  
+  {/*Function to get the column letter from the column index*/}
   const getColumnLetter = (index) => {
     let column = '';
     while (index >= 0) {
@@ -131,44 +154,8 @@ export default function Home() {
   };
   const getCellReference = (row, col) => `${getColumnLetter(col)}${row + 1}`;
 
-  
-  const handleCellClick = (row, col) => {
-    const cellRef = getCellReference(row, col);
-    setActiveCell(cellRef);
-    setEditValue(gridData[cellRef] || '');
-  };
 
-  
-  
-  const handleCellChange = (row, col, value) => {
-    console.log('Cell change:', row, col, value); 
-    const cellRef = getCellReference(row, col);
-    setGridData(prev => ({
-      ...prev,
-      [cellRef]: value
-    }));
-  };
-
-
-  const handleFormulaBarChange = (value) => {
-    setEditValue(value);
-    if (activeCell) {
-      setGridData(prev => ({
-        ...prev,
-        [activeCell]: value
-      }));
-    }
-  };
-  
-
-  const handleMenuClick = (menuName) => {
-    setActiveMenu(activeMenu === menuName ? null : menuName);
-  };
-
-  const closeAllMenus = () => {
-    setActiveMenu(null);
-  };
-
+  {/*Function to handle cut, copy and paste operations*/}
   const handleCut = () => {
     if (activeCell) {
       setClipboardData(gridData[activeCell]);
@@ -196,7 +183,27 @@ export default function Home() {
     }
   };
 
-  
+
+
+  {/*Function to handle format change*/}
+  const colors = [
+    '#000000', '#FF0000', '#00FF00', '#0000FF',
+    '#FFFF00', '#FF00FF', '#00FFFF', '#808080',
+    '#800000', '#008000', '#000080', '#808000',
+    '#800080', '#008080', '#C0C0C0', '#FFFFFF'
+  ];
+
+  const handleColorSelect = (color) => {
+    const newCellStyles = { ...cellStyles };
+    selectedCells.forEach(cellRef => {
+      newCellStyles[cellRef] = {
+        ...newCellStyles[cellRef],
+        backgroundColor: color
+      };
+    });
+    setCellStyles(newCellStyles);
+    setShowColorPicker(false);
+  };
 
   const handleFormatChange = (format, value) => {
     setCellStyles(prev => {
@@ -221,14 +228,15 @@ export default function Home() {
     };
   };
 
-
   
+
+  {/*Function to export the grid data to excel*/}
   const exportToExcel = () => {
     const wb = XLSX.utils.book_new();
     const data = [];
     const maxRow = Math.max(...Object.keys(gridData).map(ref => parseInt(ref.match(/\d+/))));
     const maxCol = Math.max(...Object.keys(gridData).map(ref => ref.charCodeAt(0) - 65));
-    
+
     for (let row = 0; row <= maxRow; row++) {
       const rowData = [];
       for (let col = 0; col <= maxCol; col++) {
@@ -237,18 +245,20 @@ export default function Home() {
       }
       data.push(rowData);
     }
-    
+
     const ws = XLSX.utils.aoa_to_sheet(data);
     XLSX.utils.book_append_sheet(wb, ws, "Sheet1");
     XLSX.writeFile(wb, "spreadsheet.xlsx");
   };
 
+
+  {/*Function to get the selected text and values*/}
   const getSelectedText = () => {
     if (selectedCells.size === 0) {
       alert("Please select cells to perform operations");
       return null;
     }
-  
+
     const textValues = [];
     selectedCells.forEach(cellRef => {
       const value = gridData[cellRef];
@@ -256,71 +266,41 @@ export default function Home() {
         textValues.push({ cellRef, value: String(value) });
       }
     });
-  
+
     return textValues;
   };
 
-  const applyDataQuality = (operation) => {
-    const cells = getSelectedText();
-    if (!cells || cells.length === 0) return;
-  
-    const updatedData = { ...gridData };
-    
-    switch (operation) {
-      case 'TRIM':
-        cells.forEach(({ cellRef, value }) => {
-          updatedData[cellRef] = value.trim();
-        });
-        break;
-        
-      case 'UPPER':
-        cells.forEach(({ cellRef, value }) => {
-          updatedData[cellRef] = value.toUpperCase();
-        });
-        break;
-        
-      case 'LOWER':
-        cells.forEach(({ cellRef, value }) => {
-          updatedData[cellRef] = value.toLowerCase();
-        });
-        break;
-        
-      case 'REMOVE_DUPLICATES':
-        const uniqueValues = new Set(cells.map(({ value }) => value));
-        const duplicates = cells.filter(({ value }) => 
-          cells.filter(cell => cell.value === value).length > 1
-        );
-        duplicates.forEach(({ cellRef }) => {
-          updatedData[cellRef] = '';
-        });
-        alert(`Removed ${duplicates.length} duplicate values`);
-        break;
-        
-      case 'FIND_AND_REPLACE':
-        const findText = prompt('Enter text to find:');
-        if (!findText) return;
-        
-        const replaceText = prompt('Enter replacement text:');
-        if (replaceText === null) return;
-        
-        let replacements = 0;
-        cells.forEach(({ cellRef, value }) => {
-          if (value.includes(findText)) {
-            updatedData[cellRef] = value.replaceAll(findText, replaceText);
-            replacements++;
-          }
-        });
-        alert(`Replaced ${replacements} occurrences`);
-        break;
-        
-      default:
-        return;
+  const getSelectedValues = () => {
+    if (selectedCells.size === 0) {
+      alert("Please select cells to perform calculations");
+      return null;
     }
-    
-    setGridData(updatedData);
+
+    const values = [];
+    let hasVarchar = false;
+
+    selectedCells.forEach(cellRef => {
+      const value = gridData[cellRef];
+      if (value) {
+        const numValue = parseFloat(value);
+        if (!isNaN(numValue)) {
+          values.push(numValue);
+        } else {
+          hasVarchar = true;
+        }
+      }
+    });
+
+    if (hasVarchar) {
+      alert("The selected cells have varchar and it has been ignored");
+    }
+
+    return values;
   };
 
-  
+
+
+  {/*Function to apply data quality operations*/}
   const menus = {
     file: {
       items: [
@@ -330,21 +310,21 @@ export default function Home() {
     },
     edit: {
       items: [
-        { 
-          label: 'Cut', 
-          icon: <Scissors />, 
+        {
+          label: 'Cut',
+          icon: <Scissors />,
           onClick: handleCut,
           disabled: !activeCell
         },
-        { 
-          label: 'Copy', 
-          icon: <Copy />, 
+        {
+          label: 'Copy',
+          icon: <Copy />,
           onClick: handleCopy,
           disabled: !activeCell
         },
-        { 
-          label: 'Paste', 
-          icon: <Clipboard />, 
+        {
+          label: 'Paste',
+          icon: <Clipboard />,
           onClick: handlePaste,
           disabled: !activeCell || clipboardData === null
         },
@@ -352,31 +332,31 @@ export default function Home() {
     },
     formula: {
       items: [
-        { 
+        {
           label: 'Sum',
           icon: <Plus />,
           onClick: () => calculateFormula('SUM'),
           disabled: selectedCells.size === 0
         },
-        { 
+        {
           label: 'Average',
           icon: <Equal />,
           onClick: () => calculateFormula('AVERAGE'),
           disabled: selectedCells.size === 0
         },
-        { 
+        {
           label: 'Max',
           icon: <ArrowUp />,
           onClick: () => calculateFormula('MAX'),
           disabled: selectedCells.size === 0
         },
-        { 
+        {
           label: 'Min',
           icon: <ArrowDown />,
           onClick: () => calculateFormula('MIN'),
           disabled: selectedCells.size === 0
         },
-        { 
+        {
           label: 'Count',
           icon: <Hash />,
           onClick: () => calculateFormula('COUNT'),
@@ -384,7 +364,7 @@ export default function Home() {
         }
       ]
     },
-    
+
     dataQuality: {
       items: [
         {
@@ -426,38 +406,70 @@ export default function Home() {
     },
   };
 
-  const getSelectedValues = () => {
-    if (selectedCells.size === 0) {
-      alert("Please select cells to perform calculations");
-      return null;
+  const applyDataQuality = (operation) => {
+    const cells = getSelectedText();
+    if (!cells || cells.length === 0) return;
+
+    const updatedData = { ...gridData };
+
+    switch (operation) {
+      case 'TRIM':
+        cells.forEach(({ cellRef, value }) => {
+          updatedData[cellRef] = value.trim();
+        });
+        break;
+
+      case 'UPPER':
+        cells.forEach(({ cellRef, value }) => {
+          updatedData[cellRef] = value.toUpperCase();
+        });
+        break;
+
+      case 'LOWER':
+        cells.forEach(({ cellRef, value }) => {
+          updatedData[cellRef] = value.toLowerCase();
+        });
+        break;
+
+      case 'REMOVE_DUPLICATES':
+        const uniqueValues = new Set(cells.map(({ value }) => value));
+        const duplicates = cells.filter(({ value }) =>
+          cells.filter(cell => cell.value === value).length > 1
+        );
+        duplicates.forEach(({ cellRef }) => {
+          updatedData[cellRef] = '';
+        });
+        alert(`Removed ${duplicates.length} duplicate values`);
+        break;
+
+      case 'FIND_AND_REPLACE':
+        const findText = prompt('Enter text to find:');
+        if (!findText) return;
+
+        const replaceText = prompt('Enter replacement text:');
+        if (replaceText === null) return;
+
+        let replacements = 0;
+        cells.forEach(({ cellRef, value }) => {
+          if (value.includes(findText)) {
+            updatedData[cellRef] = value.replaceAll(findText, replaceText);
+            replacements++;
+          }
+        });
+        alert(`Replaced ${replacements} occurrences`);
+        break;
+
+      default:
+        return;
     }
-  
-    const values = [];
-    let hasVarchar = false;
-  
-    selectedCells.forEach(cellRef => {
-      const value = gridData[cellRef];
-      if (value) {
-        const numValue = parseFloat(value);
-        if (!isNaN(numValue)) {
-          values.push(numValue);
-        } else {
-          hasVarchar = true;
-        }
-      }
-    });
-  
-    if (hasVarchar) {
-      alert("The selected cells have varchar and it has been ignored");
-    }
-  
-    return values;
+
+    setGridData(updatedData);
   };
-  
+
   const calculateFormula = (formula) => {
     const values = getSelectedValues();
     if (!values || values.length === 0) return;
-  
+
     let result;
     switch (formula) {
       case 'SUM':
@@ -478,19 +490,19 @@ export default function Home() {
       default:
         return;
     }
-  
+
     alert(`${formula} Result: ${result.toFixed(2)}`);
   };
-  
 
+
+
+  {/*Function to insert rows and columns*/}
   const insertRow = (afterIndex) => {
     const newGridData = {};
-    
-    // Move all existing cell data below the insertion point down by one row
     Object.entries(gridData).forEach(([cellRef, value]) => {
       const col = cellRef.match(/[A-Z]+/)[0];
       const row = parseInt(cellRef.match(/\d+/)[0]);
-      
+
       if (row > afterIndex + 1) {
         const newCellRef = `${col}${row + 1}`;
         newGridData[newCellRef] = value;
@@ -498,19 +510,19 @@ export default function Home() {
         newGridData[cellRef] = value;
       }
     });
-    
+
     setGridData(newGridData);
     setNumRows(prev => prev + 1);
   };
 
   const insertColumn = (afterIndex) => {
     const newGridData = {};
-    
+
     Object.entries(gridData).forEach(([cellRef, value]) => {
       const colMatch = cellRef.match(/[A-Z]+/)[0];
       const col = colMatch.split('').reduce((acc, char) => acc * 26 + char.charCodeAt(0) - 64, 0) - 1;
       const row = parseInt(cellRef.match(/\d+/)[0]);
-      
+
       if (col > afterIndex) {
         const newCol = getColumnLetter(col + 1);
         const newCellRef = `${newCol}${row}`;
@@ -519,7 +531,7 @@ export default function Home() {
         newGridData[cellRef] = value;
       }
     });
-    
+
     setGridData(newGridData);
     setNumColumns(prev => prev + 1);
   };
@@ -566,47 +578,46 @@ export default function Home() {
 
       {/* Spreadsheet Grid */}
       <main className="flex-grow overflow-auto">
-      <div className="relative" ref={gridRef}>
-        {/* Column Headers */}
-        <div className="flex border-b bg-gray-50 sticky top-0">
-          <div className="w-10 border-r p-1"></div>
-          {Array.from({ length: numColumns }, (_, i) => (
-            <div key={i} className="relative group w-24 border-r p-1 text-center text-sm">
-              <div>{getColumnLetter(i)}</div>
-              <button
-                className="absolute hidden group-hover:block right-0 top-0 h-full w-1 bg-green-500 hover:w-3 transition-all cursor-col-resize"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  insertColumn(i);
-                }}
-              />
-            </div>
-          ))}
-        </div>
+        <div className="relative" ref={gridRef}>
+          {/* Column Headers */}
+          <div className="flex border-b bg-gray-50 sticky top-0">
+            <div className="w-10 border-r p-1"></div>
+            {Array.from({ length: numColumns }, (_, i) => (
+              <div key={i} className="relative group w-24 border-r p-1 text-center text-sm">
+                <div>{getColumnLetter(i)}</div>
+                <button
+                  className="absolute hidden group-hover:block right-0 top-0 h-full w-1 bg-green-500 hover:w-3 transition-all cursor-col-resize"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    insertColumn(i);
+                  }}
+                />
+              </div>
+            ))}
+          </div>
 
-        {/* Rows */}
-        {Array.from({ length: numRows }, (_, rowIndex) => (
-          <div key={rowIndex} className="flex border-b group">
-            <div className="relative w-10 border-r bg-gray-50 p-1 text-sm text-center">
-              {rowIndex + 1}
-              <button
-                className="absolute hidden group-hover:block left-0 bottom-0 h-1 w-full bg-green-500 hover:h-3 transition-all cursor-row-resize"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  insertRow(rowIndex);
-                }}
-              />
-            </div>
-            {Array.from({ length: numColumns }, (_, colIndex) => {
+          {/* Rows */}
+          {Array.from({ length: numRows }, (_, rowIndex) => (
+            <div key={rowIndex} className="flex border-b group">
+              <div className="relative w-10 border-r bg-gray-50 p-1 text-sm text-center">
+                {rowIndex + 1}
+                <button
+                  className="absolute hidden group-hover:block left-0 bottom-0 h-1 w-full bg-green-500 hover:h-3 transition-all cursor-row-resize"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    insertRow(rowIndex);
+                  }}
+                />
+              </div>
+              {Array.from({ length: numColumns }, (_, colIndex) => {
                 const cellRef = getCellReference(rowIndex, colIndex);
                 const cellStyle = getCellStyle(cellRef);
-                
+
                 return (
                   <div
                     key={colIndex}
-                    className={`w-24 border-r p-1 cursor-text ${
-                      selectedCells.has(cellRef) ? 'bg-blue-100' : ''
-                    } ${activeCell === cellRef ? 'outline outline-1 outline-blue-500' : 'hover:bg-gray-50'}`}
+                    className={`w-24 border-r p-1 cursor-text ${selectedCells.has(cellRef) ? 'bg-blue-100' : ''
+                      } ${activeCell === cellRef ? 'outline outline-1 outline-blue-500' : 'hover:bg-gray-50'}`}
                     onClick={() => handleCellClick(rowIndex, colIndex)}
                     onMouseDown={(e) => handleMouseDown(rowIndex, colIndex, e)}
                     onMouseMove={() => handleMouseMove(rowIndex, colIndex)}
@@ -622,10 +633,10 @@ export default function Home() {
                   </div>
                 );
               })}
-          </div>
-        ))}
-      </div>
-    </main>
+            </div>
+          ))}
+        </div>
+      </main>
 
 
       {/* Status Bar */}
