@@ -4,7 +4,7 @@
 
 Clone the repository:
 ```bash
-git clone https://github.com/yourusername/spreadsheet-grid-app.git
+git clone https://github.com/itsrealkarthik/Google-Sheets-Clone.git
 ```
 
 Run the development server:
