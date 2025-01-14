@@ -1,8 +1,10 @@
 "use client"
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Save, ChevronDown, Bold, Italic, Underline, AlignLeft, AlignCenter, AlignRight, Plus, FileText, HelpCircle, Copy, Scissors, Clipboard, X, Equal, ArrowUp, ArrowDown, Hash, ArrowUpCircle, ArrowDownCircle, Replace } from 'lucide-react';
+import { Save, ChevronDown, Plus, FileText, HelpCircle, Copy, Scissors, Clipboard, X, Equal, ArrowUp, ArrowDown, Hash, ArrowUpCircle, ArrowDownCircle, Replace } from 'lucide-react';
 import * as XLSX from 'xlsx';
+import MenuBar from './menu';
+import FormattingToolbar from './toolbar';
 
 
 
@@ -20,8 +22,29 @@ export default function Home() {
   const [dragStart, setDragStart] = useState(null);
   const [dragEnd, setDragEnd] = useState(null);
   const [isCtrlPressed, setIsCtrlPressed] = useState(false);
+  const [showColorPicker, setShowColorPicker] = useState(false);
+  const [cellStyles, setCellStyles] = useState({});
 
   const gridRef = useRef(null);
+
+  const colors = [
+    '#000000', '#FF0000', '#00FF00', '#0000FF', 
+    '#FFFF00', '#FF00FF', '#00FFFF', '#808080',
+    '#800000', '#008000', '#000080', '#808000',
+    '#800080', '#008080', '#C0C0C0', '#FFFFFF'
+  ];
+
+  const handleColorSelect = (color) => {
+    const newCellStyles = { ...cellStyles };
+    selectedCells.forEach(cellRef => {
+      newCellStyles[cellRef] = {
+        ...newCellStyles[cellRef],
+        backgroundColor: color
+      };
+    });
+    setCellStyles(newCellStyles);
+    setShowColorPicker(false);
+  };
 
   useEffect(() => {
     const handleKeyDown = (e) => {
@@ -49,7 +72,6 @@ export default function Home() {
     const cellRef = getCellReference(rowIndex, colIndex);
 
     if (isCtrlPressed) {
-      // Toggle individual cell selection with Ctrl
       setSelectedCells(prev => {
         const newSelection = new Set(prev);
         if (newSelection.has(cellRef)) {
@@ -60,7 +82,6 @@ export default function Home() {
         return newSelection;
       });
     } else {
-      // Start new drag selection
       setIsDragging(true);
       setDragStart({ row: rowIndex, col: colIndex });
       setDragEnd({ row: rowIndex, col: colIndex });
@@ -74,14 +95,12 @@ export default function Home() {
   const handleMouseMove = (rowIndex, colIndex) => {
     if (isDragging) {
       setDragEnd({ row: rowIndex, col: colIndex });
-      
-      // Calculate selected range
+
       const startRow = Math.min(dragStart.row, rowIndex);
       const endRow = Math.max(dragStart.row, rowIndex);
       const startCol = Math.min(dragStart.col, colIndex);
       const endCol = Math.max(dragStart.col, colIndex);
 
-      // Update selected cells
       const newSelection = new Set();
       for (let r = startRow; r <= endRow; r++) {
         for (let c = startCol; c <= endCol; c++) {
@@ -120,9 +139,9 @@ export default function Home() {
   };
 
   
-  // At the top of your component, add a console log in handleCellChange
+  
   const handleCellChange = (row, col, value) => {
-    console.log('Cell change:', row, col, value); // Add this line
+    console.log('Cell change:', row, col, value); 
     const cellRef = getCellReference(row, col);
     setGridData(prev => ({
       ...prev,
@@ -176,6 +195,32 @@ export default function Home() {
       setEditValue(clipboardData);
     }
   };
+
+  
+
+  const handleFormatChange = (format, value) => {
+    setCellStyles(prev => {
+      const newStyles = { ...prev };
+      selectedCells.forEach(cellRef => {
+        newStyles[cellRef] = {
+          ...newStyles[cellRef],
+          [format]: value
+        };
+      });
+      return newStyles;
+    });
+  };
+
+  const getCellStyle = (cellRef) => {
+    const style = cellStyles[cellRef] || {};
+    return {
+      ...style,
+      fontWeight: style.bold ? 'bold' : 'normal',
+      fontStyle: style.italic ? 'italic' : 'normal',
+      textDecoration: style.underline ? 'underline' : 'none'
+    };
+  };
+
 
   
   const exportToExcel = () => {
@@ -437,32 +482,6 @@ export default function Home() {
     alert(`${formula} Result: ${result.toFixed(2)}`);
   };
   
-  const DropdownMenu = ({ isOpen, items, onClose }) => {
-    if (!isOpen) return null;
-    
-    return (
-      <div className="absolute top-full left-0 mt-1 bg-white shadow-lg rounded-md border z-50 min-w-[200px]">
-        {items.map((item, index) => (
-          <button
-            key={index}
-            className={`w-full text-left px-4 py-2 flex items-center space-x-2 
-              ${item.disabled 
-                ? 'opacity-50 cursor-not-allowed bg-gray-50' 
-                : 'hover:bg-gray-100 cursor-pointer'}`}
-            onClick={() => {
-              if (!item.disabled) {
-                item.onClick();
-                onClose();
-              }
-            }}
-          >
-            {item.icon && <span className="w-5 h-5">{item.icon}</span>}
-            <span>{item.label}</span>
-          </button>
-        ))}
-      </div>
-    );
-  };
 
   const insertRow = (afterIndex) => {
     const newGridData = {};
@@ -487,7 +506,6 @@ export default function Home() {
   const insertColumn = (afterIndex) => {
     const newGridData = {};
     
-    // Move all existing cell data to the right of the insertion point over by one column
     Object.entries(gridData).forEach(([cellRef, value]) => {
       const colMatch = cellRef.match(/[A-Z]+/)[0];
       const col = colMatch.split('').reduce((acc, char) => acc * 26 + char.charCodeAt(0) - 64, 0) - 1;
@@ -509,69 +527,25 @@ export default function Home() {
   return (
     <div className="flex flex-col h-screen bg-gray-100" onClick={() => closeAllMenus()}>
       <header className="bg-white border-b">
-        <div className="flex items-center space-x-4 p-1 bg-[#107c41] border-b relative">
-          {Object.entries(menus).map(([menuName, menuConfig]) => (
-            <div key={menuName} className="relative">
-              <button 
-                className="hover:bg-green-800 px-3 py-1 flex items-center text-white text-sm capitalize"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleMenuClick(menuName);
-                }}
-              >
-                {menuName} <ChevronDown className="w-4 h-4 ml-1" />
-              </button>
-              <DropdownMenu
-                isOpen={activeMenu === menuName}
-                items={menuConfig.items}
-                onClose={closeAllMenus}
-              />
-            </div>
-          ))}
-        </div>
+
+        {/* Menu Bar */}
+        <MenuBar
+          menus={menus}
+          activeMenu={activeMenu}
+          handleMenuClick={handleMenuClick}
+          closeAllMenus={closeAllMenus}
+        />
 
         {/* Command Toolbar */}
-        <div className="flex items-center space-x-6 p-1">
-          <div className="border-r pr-4">
-            <button className="p-2 hover:bg-gray-100 rounded" onClick={()=>exportToExcel()} >
-              <Save className="w-5 h-5" />
-            </button>
-          </div>
+        <FormattingToolbar
+          exportToExcel={exportToExcel}
+          handleFormatChange={handleFormatChange}
+          selectedCells={selectedCells}
+          cellStyles={cellStyles}
+          colors={colors}
+          handleColorSelect={handleColorSelect}
+        />
 
-          <div className="flex items-center space-x-2 border-r pr-4">
-            <select className="border rounded px-2 py-1 text-sm">
-              <option>Calibri</option>
-              <option>Arial</option>
-            </select>
-            <select className="border rounded px-2 py-1 text-sm w-16">
-              <option>11</option>
-              <option>12</option>
-            </select>
-            <div className="flex space-x-1">
-              <button className="p-1 hover:bg-gray-100 rounded">
-                <Bold className="w-4 h-4" />
-              </button>
-              <button className="p-1 hover:bg-gray-100 rounded">
-                <Italic className="w-4 h-4" />
-              </button>
-              <button className="p-1 hover:bg-gray-100 rounded">
-                <Underline className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
-
-          <div className="flex items-center space-x-1 border-r pr-4">
-            <button className="p-1 hover:bg-gray-100 rounded">
-              <AlignLeft className="w-4 h-4" />
-            </button>
-            <button className="p-1 hover:bg-gray-100 rounded">
-              <AlignCenter className="w-4 h-4" />
-            </button>
-            <button className="p-1 hover:bg-gray-100 rounded">
-              <AlignRight className="w-4 h-4" />
-            </button>
-          </div>
-        </div>
       </header>
 
       {/* Formula Bar */}
@@ -624,27 +598,30 @@ export default function Home() {
               />
             </div>
             {Array.from({ length: numColumns }, (_, colIndex) => {
-              const cellRef = getCellReference(rowIndex, colIndex);
-              return (
-                <div
-                  key={colIndex}
-                  className={`w-24 border-r p-1 cursor-text ${
-                    selectedCells.has(cellRef) ? 'bg-blue-100' : ''
-                  } ${activeCell === cellRef ? 'outline outline-1 outline-blue-500' : 'hover:bg-gray-50'}`}
-                  onClick={() => handleCellClick(rowIndex, colIndex)}
-                  onMouseDown={(e) => handleMouseDown(rowIndex, colIndex, e)}
-                  onMouseMove={() => handleMouseMove(rowIndex, colIndex)}
-                >
-                  <input
-                    type="text"
-                    className="w-full h-full focus:outline-none bg-transparent"
-                    value={gridData[cellRef] || ''}
-                    onChange={(e) => handleCellChange(rowIndex, colIndex, e.target.value)}
-                    onClick={(e) => e.stopPropagation()}
-                  />
-                </div>
-              );
-            })}
+                const cellRef = getCellReference(rowIndex, colIndex);
+                const cellStyle = getCellStyle(cellRef);
+                
+                return (
+                  <div
+                    key={colIndex}
+                    className={`w-24 border-r p-1 cursor-text ${
+                      selectedCells.has(cellRef) ? 'bg-blue-100' : ''
+                    } ${activeCell === cellRef ? 'outline outline-1 outline-blue-500' : 'hover:bg-gray-50'}`}
+                    onClick={() => handleCellClick(rowIndex, colIndex)}
+                    onMouseDown={(e) => handleMouseDown(rowIndex, colIndex, e)}
+                    onMouseMove={() => handleMouseMove(rowIndex, colIndex)}
+                  >
+                    <input
+                      type="text"
+                      className="w-full h-full focus:outline-none bg-transparent"
+                      style={cellStyle}
+                      value={gridData[cellRef] || ''}
+                      onChange={(e) => handleCellChange(rowIndex, colIndex, e.target.value)}
+                      onClick={(e) => e.stopPropagation()}
+                    />
+                  </div>
+                );
+              })}
           </div>
         ))}
       </div>
